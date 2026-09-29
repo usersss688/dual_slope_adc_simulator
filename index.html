@@ -1,0 +1,1140 @@
+<!DOCTYPE html>
+<html lang="ja" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>二重積分型AD変換器 (Dual-Slope ADC) 学習シミュレータ</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#f0f9ff',
+                            100: '#e0f2fe',
+                            500: '#0284c7',
+                            600: '#0284c7',
+                            900: '#0c4a6e',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- KaTeX for mathematical formulas -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/contrib/auto-render.min.js"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600;700&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #090d16;
+            color: #f1f5f9;
+        }
+
+        code, .font-mono {
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        /* Mandatory Keywords Badges */
+        .kw-integrator {
+            background: linear-gradient(135deg, rgba(30, 58, 138, 0.8), rgba(29, 78, 216, 0.6));
+            color: #bfdbfe;
+            border: 1px solid rgba(96, 165, 250, 0.5);
+            padding: 0.15rem 0.55rem;
+            border-radius: 0.375rem;
+            font-weight: 700;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.3rem;
+            box-shadow: 0 0 10px rgba(59, 130, 246, 0.2);
+        }
+
+        .kw-time {
+            background: linear-gradient(135deg, rgba(6, 78, 59, 0.8), rgba(16, 185, 129, 0.6));
+            color: #a7f3d0;
+            border: 1px solid rgba(52, 211, 153, 0.5);
+            padding: 0.15rem 0.55rem;
+            border-radius: 0.375rem;
+            font-weight: 700;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.3rem;
+            box-shadow: 0 0 10px rgba(16, 185, 129, 0.2);
+        }
+
+        .kw-ref {
+            background: linear-gradient(135deg, rgba(120, 53, 15, 0.8), rgba(217, 119, 6, 0.6));
+            color: #fef08a;
+            border: 1px solid rgba(251, 191, 36, 0.5);
+            padding: 0.15rem 0.55rem;
+            border-radius: 0.375rem;
+            font-weight: 700;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.3rem;
+            box-shadow: 0 0 10px rgba(245, 158, 11, 0.2);
+        }
+
+        /* Glowing result card animation */
+        .glow-card {
+            box-shadow: 0 0 25px rgba(16, 185, 129, 0.25);
+            border: 2px solid rgba(52, 211, 153, 0.5);
+        }
+
+        .glow-card-active {
+            animation: pulse-border 2s infinite alternate;
+        }
+
+        @keyframes pulse-border {
+            0% {
+                box-shadow: 0 0 15px rgba(16, 185, 129, 0.3);
+                border-color: rgba(52, 211, 153, 0.5);
+            }
+            100% {
+                box-shadow: 0 0 35px rgba(16, 185, 129, 0.7);
+                border-color: rgba(52, 211, 153, 0.9);
+            }
+        }
+
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0f172a;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #334155;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between antialiased selection:bg-cyan-500 selection:text-white">
+
+    <!-- HEADER -->
+    <header class="bg-slate-900/90 border-b border-slate-800 sticky top-0 z-50 backdrop-blur-md">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex flex-wrap justify-between items-center gap-4">
+            <div class="flex items-center space-x-3">
+                <div class="p-2.5 bg-cyan-600/20 text-cyan-400 rounded-xl border border-cyan-500/30">
+                    <i class="fa-solid fa-microchip text-2xl"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl font-bold bg-gradient-to-r from-cyan-400 via-emerald-300 to-indigo-400 bg-clip-text text-transparent">
+                        二重積分型A/D変換器 (Dual-Slope ADC)
+                    </h1>
+                    <p class="text-xs text-slate-400">高専4年生向け 電子回路・計測工学 インタラクティブWebアプリ</p>
+                </div>
+            </div>
+
+            <!-- Mandatory Keyword Badges Container -->
+            <div class="flex flex-wrap items-center gap-2 text-xs">
+                <span class="text-slate-400 mr-1 text-[11px] hidden sm:inline">3大キー概念:</span>
+                <span class="kw-integrator"><i class="fa-solid fa-wave-square text-xs"></i> 積分器</span>
+                <span class="kw-time"><i class="fa-regular fa-clock text-xs"></i> 時間 (T₁, T₂)</span>
+                <span class="kw-ref"><i class="fa-solid fa-bolt text-xs"></i> 基準電圧 (V_ref)</span>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex-grow w-full space-y-6">
+
+        <!-- HIGHLIGHT FEATURE: Prominent Calculated Output Voltage Display Banner -->
+        <section id="result-voltage-banner" class="bg-slate-900/95 border rounded-2xl p-5 shadow-2xl transition-all duration-300 glow-card glow-card-active">
+            <div class="flex flex-col lg:flex-row justify-between items-center gap-6">
+                
+                <!-- Left Column: Main Big Measured Voltage Badge -->
+                <div class="flex items-center space-x-5">
+                    <div class="p-4 bg-emerald-950/80 border border-emerald-500/50 rounded-2xl text-emerald-400 text-3xl shadow-inner">
+                        <i class="fa-solid fa-gauge-high"></i>
+                    </div>
+                    <div>
+                        <div class="flex items-center space-x-2">
+                            <span class="text-xs font-bold text-emerald-400 tracking-wider uppercase bg-emerald-950 px-2 py-0.5 rounded border border-emerald-800">
+                                測定完了・出力復元結果
+                            </span>
+                            <span id="completion-status-badge" class="text-xs text-slate-400">
+                                (リアルタイム計算中)
+                            </span>
+                        </div>
+                        
+                        <!-- MASSIVE VOLTAGE DISPLAY -->
+                        <div class="flex items-baseline space-x-2 mt-1">
+                            <span class="text-slate-400 text-sm font-medium">測定結果電圧:</span>
+                            <span id="output-voltage-display" class="text-4xl sm:text-5xl font-black text-emerald-300 font-mono tracking-tight">
+                                2.500 V
+                            </span>
+                        </div>
+
+                        <p class="text-xs text-slate-400 mt-1 flex flex-wrap items-center gap-x-3 gap-y-1">
+                            <span>入力電圧 $V_{in}$: <strong id="vin-compare-text" class="text-cyan-300 font-mono">2.50 V</strong></span>
+                            <span>・</span>
+                            <span>量子化誤差: <strong id="quant-error-text" class="text-amber-300 font-mono">0.000 V</strong></span>
+                            <span>・</span>
+                            <span>1 LSB 幅: <strong id="lsb-width-text" class="text-indigo-300 font-mono">19.53 mV</strong></span>
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Right Column: Digital Output & Pulse Count Metrics -->
+                <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 w-full lg:w-auto">
+                    <!-- Digital Count D -->
+                    <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 text-center">
+                        <div class="text-[11px] text-slate-400 font-medium">デジタル出力 ($D$)</div>
+                        <div id="digital-count-display" class="text-xl font-bold font-mono text-cyan-400 mt-0.5">128 / 256</div>
+                        <div id="digital-binary-display" class="text-[10px] text-slate-500 font-mono">0b10000000</div>
+                    </div>
+
+                    <!-- Measured Time T2 -->
+                    <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 text-center">
+                        <div class="text-[11px] text-slate-400 font-medium">
+                            <span class="kw-time py-0 px-1 text-[10px]"><i class="fa-regular fa-clock"></i> 時間</span> 放電 $T_2$
+                        </div>
+                        <div id="t2-time-display" class="text-xl font-bold font-mono text-emerald-400 mt-0.5">2.56 ms</div>
+                        <div id="t2-clocks-display" class="text-[10px] text-slate-500 font-mono">128 クロック</div>
+                    </div>
+
+                    <!-- Up Integration Time T1 -->
+                    <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 text-center col-span-2 sm:col-span-1">
+                        <div class="text-[11px] text-slate-400 font-medium">
+                            <span class="kw-time py-0 px-1 text-[10px]"><i class="fa-regular fa-clock"></i> 時間</span> 充電 $T_1$
+                        </div>
+                        <div id="t1-time-display" class="text-xl font-bold font-mono text-sky-400 mt-0.5">5.12 ms</div>
+                        <div id="t1-clocks-display" class="text-[10px] text-slate-500 font-mono">固定 256 クロック</div>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- CONTROL PANEL & PARAMETER SETTINGS -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            
+            <!-- Parameters Settings Box (Left 6 cols) -->
+            <div class="lg:col-span-6 bg-slate-900/90 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-4">
+                <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+                    <h2 class="font-semibold text-slate-200 flex items-center gap-2">
+                        <i class="fa-solid fa-sliders text-cyan-400"></i> 入力パラメータ設定
+                    </h2>
+                    <span class="text-xs px-2 py-0.5 rounded bg-cyan-950 text-cyan-300 border border-cyan-800">可変パラメータ</span>
+                </div>
+
+                <div class="space-y-4 text-sm">
+                    <!-- Analog Input Vin -->
+                    <div class="space-y-1">
+                        <div class="flex justify-between items-center text-xs">
+                            <label for="vin" class="text-slate-300 font-medium">入力アナログ電圧 $V_{in}$:</label>
+                            <span class="font-mono text-cyan-300 font-bold text-sm"><span id="vin-val">2.50</span> V</span>
+                        </div>
+                        <input type="range" id="vin" min="0.05" max="5.00" step="0.05" value="2.50"
+                            class="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-cyan-500">
+                    </div>
+
+                    <!-- Reference Voltage Vref -->
+                    <div class="space-y-1">
+                        <div class="flex justify-between items-center text-xs">
+                            <label for="vref" class="text-slate-300 font-medium">
+                                <span class="kw-ref py-0 px-1 text-[11px]"><i class="fa-solid fa-bolt"></i> 基準電圧</span> $V_{ref}$:
+                            </label>
+                            <span class="font-mono text-amber-300 font-bold text-sm"><span id="vref-val">5.00</span> V</span>
+                        </div>
+                        <input type="range" id="vref" min="1.00" max="10.00" step="0.50" value="5.00"
+                            class="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-amber-500">
+                    </div>
+
+                    <!-- Resolution Bits N and Clock Frequency -->
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label for="resolution" class="block text-xs text-slate-300 mb-1 font-medium">分解能 $N$ (bits):</label>
+                            <select id="resolution" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-200 focus:ring-2 focus:ring-cyan-500 focus:outline-none">
+                                <option value="6">6-bit (64 カウント)</option>
+                                <option value="8" selected>8-bit (256 カウント)</option>
+                                <option value="10">10-bit (1024 カウント)</option>
+                                <option value="12">12-bit (4096 カウント)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="fclk" class="block text-xs text-slate-300 mb-1 font-medium">クロック周波数 $f_{clk}$:</label>
+                            <select id="fclk" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-200 focus:ring-2 focus:ring-cyan-500 focus:outline-none">
+                                <option value="10">10 kHz</option>
+                                <option value="50" selected>50 kHz</option>
+                                <option value="100">100 kHz</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Presets -->
+                    <div class="pt-1 flex flex-wrap items-center gap-2 text-xs">
+                        <span class="text-slate-400 text-[11px]">プリセット試行:</span>
+                        <button onclick="setPreset(2.5, 5.0, 8, 50, 0.1)" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-md border border-slate-700 transition">標準 2.5V (8bit)</button>
+                        <button onclick="setPreset(1.23, 5.0, 10, 50, 0.1)" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-md border border-slate-700 transition">高精細 1.23V (10bit)</button>
+                        <button onclick="setPreset(4.80, 5.0, 6, 50, 0.1)" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-md border border-slate-700 transition">高電圧 4.80V (6bit)</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Element Cancellation Experiment Box (Right 6 cols) -->
+            <div class="lg:col-span-6 bg-slate-900/90 border border-slate-800 rounded-2xl p-5 shadow-xl flex flex-col justify-between space-y-4">
+                <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+                    <h2 class="font-semibold text-indigo-300 flex items-center gap-2">
+                        <i class="fa-solid fa-vial text-indigo-400"></i> 素子誤差キャンセル体験 (R, C の非依存性)
+                    </h2>
+                    <span class="text-xs px-2 py-0.5 rounded bg-indigo-950 text-indigo-300 border border-indigo-800">二重積分の本質</span>
+                </div>
+
+                <p class="text-xs text-slate-300 leading-relaxed">
+                    下のリレー/キャパシタのスライダーを動かして <span class="kw-integrator"><i class="fa-solid fa-wave-square"></i> 積分器</span> の最低電圧 $V_{out,min}$ は大きく変化しますが、放電<span class="kw-time"><i class="fa-regular fa-clock"></i> 時間 $T_2$</span> や<strong>最終出力電圧 [V] に一切変化がないこと</strong>を確認してください！
+                </p>
+
+                <div class="grid grid-cols-2 gap-4 bg-slate-950 p-3.5 rounded-xl border border-slate-800">
+                    <!-- Resistor R -->
+                    <div class="space-y-1">
+                        <div class="flex justify-between text-xs">
+                            <span class="text-slate-300">抵抗 $R$:</span>
+                            <span class="font-mono text-indigo-300 font-bold"><span id="r-val">50</span> kΩ</span>
+                        </div>
+                        <input type="range" id="resistor" min="10" max="200" step="10" value="50"
+                            class="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-indigo-500">
+                    </div>
+
+                    <!-- Capacitor C -->
+                    <div class="space-y-1">
+                        <div class="flex justify-between text-xs">
+                            <span class="text-slate-300">容量 $C$:</span>
+                            <span class="font-mono text-indigo-300 font-bold"><span id="c-val">0.10</span> μF</span>
+                        </div>
+                        <input type="range" id="capacitor" min="0.01" max="1.00" step="0.05" value="0.10"
+                            class="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-indigo-500">
+                    </div>
+                </div>
+
+                <div class="flex justify-between items-center text-xs bg-indigo-950/40 p-2.5 rounded-lg border border-indigo-800/50">
+                    <span class="text-slate-300"><span class="kw-integrator py-0.5 text-[10px]">積分器</span> ピーク電圧 ($V_{out,min}$):</span>
+                    <span id="vmax-display" class="font-mono font-bold text-sky-400 text-sm">-2.56 V</span>
+                </div>
+
+                <!-- Simulation Player Bar -->
+                <div class="bg-slate-950 rounded-xl p-3 border border-slate-800 flex flex-wrap items-center justify-between gap-2">
+                    <div class="flex items-center space-x-2">
+                        <button id="btn-play" onclick="togglePlay()" class="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 text-white rounded-lg font-semibold text-xs flex items-center gap-2 shadow-lg shadow-cyan-900/30 transition">
+                            <i class="fa-solid fa-play" id="play-icon"></i> <span id="play-text">シミュレーション再生</span>
+                        </button>
+                        <button onclick="resetSim()" class="p-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs border border-slate-700" title="リセット">
+                            <i class="fa-solid fa-rotate-left"></i> リセット
+                        </button>
+                    </div>
+
+                    <div class="flex items-center space-x-2 text-xs">
+                        <span class="text-slate-400">速度:</span>
+                        <select id="sim-speed" class="bg-slate-800 border border-slate-700 rounded text-xs px-2 py-1 text-slate-200">
+                            <option value="0.25">0.25x</option>
+                            <option value="0.5">0.5x</option>
+                            <option value="1" selected>1.0x</option>
+                            <option value="2">2.0x</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- INTERACTIVE VISUALIZATIONS (CIRCUIT DIAGRAM + GRAPH) -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            
+            <!-- Circuit Canvas Block -->
+            <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 shadow-xl flex flex-col space-y-3">
+                <div class="flex justify-between items-center border-b border-slate-800 pb-2">
+                    <h3 class="text-sm font-semibold text-slate-200 flex items-center gap-2">
+                        <i class="fa-solid fa-diagram-project text-cyan-400"></i> 動的回路ブロック図 (Circuit Diagram)
+                    </h3>
+                    <div id="sw-state-badge" class="text-xs px-2.5 py-0.5 rounded bg-slate-800 text-slate-300 font-mono border border-slate-700">
+                        SW1: Vin 接続中
+                    </div>
+                </div>
+
+                <div class="relative w-full aspect-[16/10] bg-slate-950 rounded-xl overflow-hidden border border-slate-800">
+                    <canvas id="circuitCanvas" class="w-full h-full block"></canvas>
+                </div>
+
+                <div class="text-[11px] text-slate-400 bg-slate-950/60 p-2 rounded-lg flex justify-between items-center">
+                    <span><i class="fa-solid fa-circle-info text-cyan-400"></i> スイッチ動作と反転<span class="kw-integrator py-0 text-[10px]">積分器</span>の電荷蓄積状態</span>
+                    <span class="font-mono text-slate-300">オペアンプ・コンパレータ</span>
+                </div>
+            </div>
+
+            <!-- Waveform Canvas Block -->
+            <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 shadow-xl flex flex-col space-y-3">
+                <div class="flex justify-between items-center border-b border-slate-800 pb-2">
+                    <h3 class="text-sm font-semibold text-slate-200 flex items-center gap-2">
+                        <i class="fa-solid fa-chart-line text-emerald-400"></i> リアルタイム積分波形 [$V_{out}(t)$]
+                    </h3>
+                    <div class="flex items-center space-x-3 text-[11px]">
+                        <span class="inline-flex items-center gap-1 text-sky-400"><span class="w-2 h-2 rounded-full bg-sky-400"></span> T₁ (アップ)</span>
+                        <span class="inline-flex items-center gap-1 text-emerald-400"><span class="w-2 h-2 rounded-full bg-emerald-400"></span> T₂ (ダウン)</span>
+                    </div>
+                </div>
+
+                <div class="relative w-full aspect-[16/10] bg-slate-950 rounded-xl overflow-hidden border border-slate-800">
+                    <canvas id="graphCanvas" class="w-full h-full block"></canvas>
+                </div>
+
+                <div class="text-[11px] text-slate-400 bg-slate-950/60 p-2 rounded-lg flex justify-between items-center font-mono">
+                    <span>計測カウント: <span id="graph-count-display" class="text-emerald-300 font-bold">0</span> / <span id="graph-max-count">256</span></span>
+                    <span>現在積分出力: <span id="graph-vout-display" class="text-cyan-300 font-bold">0.00 V</span></span>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- STEP-BY-STEP PROCESS BREAKDOWN CARD -->
+        <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-4">
+            <div class="flex flex-wrap items-center justify-between border-b border-slate-800 pb-3 gap-2">
+                <h3 class="font-semibold text-slate-200 flex items-center gap-2">
+                    <i class="fa-solid fa-bars-staggered text-amber-400"></i> 変換プロセスの段階的解析 (Step Breakdown)
+                </h3>
+                <div class="flex items-center space-x-1" id="step-pills">
+                    <button onclick="jumpToPhase(0)" class="step-pill px-3 py-1 text-xs rounded-lg border font-medium transition" id="pill-0">Stage 0: 待機</button>
+                    <button onclick="jumpToPhase(1)" class="step-pill px-3 py-1 text-xs rounded-lg border font-medium transition" id="pill-1">Stage 1: 充電 (T₁)</button>
+                    <button onclick="jumpToPhase(2)" class="step-pill px-3 py-1 text-xs rounded-lg border font-medium transition" id="pill-2">Stage 2: 放電 (T₂)</button>
+                    <button onclick="jumpToPhase(3)" class="step-pill px-3 py-1 text-xs rounded-lg border font-medium transition" id="pill-3">Stage 3: 復元完了</button>
+                </div>
+            </div>
+
+            <div id="step-description-box" class="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-2">
+                <!-- Javascript populated dynamic detailed step explanation -->
+            </div>
+        </div>
+
+        <!-- TECHNICAL MATH & PROOF SECTION FOR KOSEN STUDENTS -->
+        <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-6">
+            <div class="border-b border-slate-800 pb-3 flex items-center justify-between">
+                <div>
+                    <h3 class="text-lg font-bold text-slate-100 flex items-center gap-2">
+                        <i class="fa-solid fa-graduation-cap text-indigo-400"></i> 高専4年生向け 数式解析と復元電圧の完全導出
+                    </h3>
+                    <p class="text-xs text-slate-400 mt-0.5">二重積分型ADCが誇る素子誤差相殺原理と電圧復元式の導出プロセス</p>
+                </div>
+                <span class="px-2.5 py-1 text-xs bg-indigo-950 text-indigo-300 border border-indigo-800 rounded-md font-mono">理論証明</span>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 text-sm">
+                
+                <!-- Proof Box 1 -->
+                <div class="space-y-3 bg-slate-950 p-4 rounded-xl border border-slate-800">
+                    <h4 class="font-semibold text-cyan-300 flex items-center gap-2 border-b border-slate-800 pb-2">
+                        <i class="fa-solid fa-square-root-variable text-xs"></i> 1. 充電・放電の電荷バランス
+                    </h4>
+                    
+                    <p class="text-xs text-slate-300 leading-relaxed">
+                        <span class="kw-integrator"><i class="fa-solid fa-wave-square"></i> 積分器</span> の反転入力端子での電荷保存則より、<span class="kw-time"><i class="fa-regular fa-clock"></i> 時間 $T_1$</span> (固定) で蓄積される電荷量と、<span class="kw-time"><i class="fa-regular fa-clock"></i> 時間 $T_2$</span> で放電される電荷量は等しくなります。
+                    </p>
+
+                    <div class="bg-slate-900 p-3 rounded-lg font-mono text-xs overflow-x-auto text-slate-200 border border-slate-800">
+                        $$V_{out}(T_1) = -\frac{1}{RC} \int_{0}^{T_1} V_{in} \, dt = -\frac{V_{in} \cdot T_1}{RC}$$
+                    </div>
+
+                    <p class="text-xs text-slate-300 leading-relaxed">
+                        続いて逆極性の <span class="kw-ref"><i class="fa-solid fa-bolt"></i> 基準電圧 $-V_{ref}$</span> を入力して $V_{out}$ が 0V に復帰する条件は：
+                    </p>
+
+                    <div class="bg-slate-900 p-3 rounded-lg font-mono text-xs overflow-x-auto text-slate-200 border border-slate-800">
+                        $$0 = -\frac{V_{in} \cdot T_1}{RC} + \frac{V_{ref} \cdot T_2}{RC} \implies V_{in} \cdot T_1 = V_{ref} \cdot T_2$$
+                    </div>
+                </div>
+
+                <!-- Proof Box 2 -->
+                <div class="space-y-3 bg-slate-950 p-4 rounded-xl border border-slate-800">
+                    <h4 class="font-semibold text-emerald-300 flex items-center gap-2 border-b border-slate-800 pb-2">
+                        <i class="fa-solid fa-calculator text-xs"></i> 2. 測定結果電圧 [V] の計算復元式
+                    </h4>
+
+                    <p class="text-xs text-slate-300 leading-relaxed">
+                        <span class="kw-time"><i class="fa-regular fa-clock"></i> 時間 $T_1$</span> は分解能 $N$ bits の最大カウント数 $2^N$、<span class="kw-time"><i class="fa-regular fa-clock"></i> 時間 $T_2$</span> は計測カウント数 $D$ にクロック周期 $1/f_{clk}$ を掛けた値です。
+                    </p>
+
+                    <div class="bg-slate-900 p-3 rounded-lg font-mono text-xs overflow-x-auto text-slate-200 border border-slate-800">
+                        $$\frac{D / f_{clk}}{2^N / f_{clk}} = \frac{V_{in}}{V_{ref}} \implies D = 2^N \cdot \left( \frac{V_{in}}{V_{ref}} \right)$$
+                    </div>
+
+                    <p class="text-xs text-slate-300 leading-relaxed">
+                        測定したデジタル値 $D$ から復元される最終測定電圧 $V_{measured}$ は次式で算出されます：
+                    </p>
+
+                    <div class="bg-emerald-950/80 p-3 rounded-lg font-mono text-xs text-emerald-300 border border-emerald-800 font-bold text-center">
+                        $$V_{measured} = D \times \text{LSB} = D \times \left( \frac{V_{ref}}{2^N} \right)$$
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+    </main>
+
+    <!-- FOOTER -->
+    <footer class="bg-slate-900 border-t border-slate-800 py-4">
+        <div class="max-w-7xl mx-auto px-4 text-center text-xs text-slate-500 flex flex-wrap justify-between items-center gap-2">
+            <span>二重積分型A/D変換器 学習シミュレータ &copy; 2026 高専電子回路・計測工学</span>
+            <div>キーワード: <strong class="text-blue-400">積分器</strong> / <strong class="text-emerald-400">時間</strong> / <strong class="text-amber-400">基準電圧</strong></div>
+        </div>
+    </footer>
+
+    <!-- JAVASCRIPT LOGIC -->
+    <script>
+        const state = {
+            vin: 2.50,
+            vref: 5.00,
+            bits: 8,
+            fclk: 50, // kHz
+            r: 50,    // kOhm
+            c: 0.10,  // uF
+            
+            // Simulation Controls
+            isPlaying: false,
+            speed: 1.0,
+            simTime: 0, // in ms
+            phase: 0,   // 0: Reset, 1: Up, 2: Down, 3: Completed
+            
+            // Metrics
+            t1: 0,
+            t2: 0,
+            vmax: 0,
+            digital: 0,
+            maxCount: 256,
+            lsb: 0,
+            vMeasured: 0,
+            quantError: 0,
+
+            // Animation
+            lastTimestamp: 0,
+            animFrameId: null
+        };
+
+        const elements = {
+            vin: document.getElementById('vin'),
+            vinVal: document.getElementById('vin-val'),
+            vref: document.getElementById('vref'),
+            vrefVal: document.getElementById('vref-val'),
+            resolution: document.getElementById('resolution'),
+            fclk: document.getElementById('fclk'),
+            resistor: document.getElementById('resistor'),
+            rVal: document.getElementById('r-val'),
+            capacitor: document.getElementById('capacitor'),
+            cVal: document.getElementById('c-val'),
+            
+            // Prominent Banner Displays
+            outputVoltageDisplay: document.getElementById('output-voltage-display'),
+            vinCompareText: document.getElementById('vin-compare-text'),
+            quantErrorText: document.getElementById('quant-error-text'),
+            lsbWidthText: document.getElementById('lsb-width-text'),
+            completionStatusBadge: document.getElementById('completion-status-badge'),
+            
+            digitalCountDisplay: document.getElementById('digital-count-display'),
+            digitalBinaryDisplay: document.getElementById('digital-binary-display'),
+            t1TimeDisplay: document.getElementById('t1-time-display'),
+            t1ClocksDisplay: document.getElementById('t1-clocks-display'),
+            t2TimeDisplay: document.getElementById('t2-time-display'),
+            t2ClocksDisplay: document.getElementById('t2-clocks-display'),
+            vmaxDisplay: document.getElementById('vmax-display'),
+            
+            btnPlay: document.getElementById('btn-play'),
+            playIcon: document.getElementById('play-icon'),
+            playText: document.getElementById('play-text'),
+            simSpeed: document.getElementById('sim-speed'),
+            
+            swStateBadge: document.getElementById('sw-state-badge'),
+            graphCountDisplay: document.getElementById('graph-count-display'),
+            graphMaxCount: document.getElementById('graph-max-count'),
+            graphVoutDisplay: document.getElementById('graph-vout-display'),
+            stepDescBox: document.getElementById('step-description-box'),
+            
+            circuitCanvas: document.getElementById('circuitCanvas'),
+            graphCanvas: document.getElementById('graphCanvas')
+        };
+
+        function updateCalculations() {
+            state.vin = parseFloat(elements.vin.value);
+            state.vref = parseFloat(elements.vref.value);
+            state.bits = parseInt(elements.resolution.value);
+            state.fclk = parseFloat(elements.fclk.value);
+            state.r = parseFloat(elements.resistor.value);
+            state.c = parseFloat(elements.capacitor.value);
+
+            // Cap Vin to Vref
+            if (state.vin > state.vref) {
+                state.vin = state.vref;
+                elements.vin.value = state.vin;
+            }
+            elements.vin.max = state.vref;
+
+            // UI Label updates
+            elements.vinVal.innerText = state.vin.toFixed(2);
+            elements.vrefVal.innerText = state.vref.toFixed(2);
+            elements.rVal.innerText = state.r.toFixed(0);
+            elements.cVal.innerText = state.c.toFixed(2);
+
+            // Calculations
+            state.maxCount = Math.pow(2, state.bits);
+            state.lsb = state.vref / state.maxCount; // 1 LSB in V
+            
+            // T1 = 2^N / fclk (in ms)
+            state.t1 = state.maxCount / state.fclk;
+            
+            // Ideal T2 = T1 * (Vin / Vref)
+            state.t2 = state.t1 * (state.vin / state.vref);
+            
+            // Peak negative voltage Vmax = - (Vin * T1) / (R * C)
+            const rc_ms = state.r * state.c;
+            state.vmax = - (state.vin * state.t1) / rc_ms;
+
+            // Quantized Digital Output D
+            state.digital = Math.round(state.vin / state.lsb);
+            if (state.digital >= state.maxCount) state.digital = state.maxCount - 1;
+
+            // Reconstructed Measured Voltage
+            state.vMeasured = state.digital * state.lsb;
+            state.quantError = state.vMeasured - state.vin;
+
+            // PROMINENT BANNER DISPLAY UPDATES
+            elements.outputVoltageDisplay.innerText = `${state.vMeasured.toFixed(3)} V`;
+            elements.vinCompareText.innerText = `${state.vin.toFixed(2)} V`;
+            
+            const errSign = state.quantError >= 0 ? "+" : "";
+            elements.quantErrorText.innerText = `${errSign}${state.quantError.toFixed(3)} V`;
+            
+            // LSB Display (formatted in mV if < 1V)
+            if (state.lsb >= 1.0) {
+                elements.lsbWidthText.innerText = `${state.lsb.toFixed(3)} V`;
+            } else {
+                elements.lsbWidthText.innerText = `${(state.lsb * 1000).toFixed(2)} mV`;
+            }
+
+            elements.digitalCountDisplay.innerText = `${state.digital} / ${state.maxCount - 1}`;
+            elements.digitalBinaryDisplay.innerText = `0b${state.digital.toString(2).padStart(state.bits, '0')}`;
+            
+            elements.t1TimeDisplay.innerText = `${state.t1.toFixed(2)} ms`;
+            elements.t1ClocksDisplay.innerText = `固定 ${state.maxCount} クロック`;
+            
+            elements.t2TimeDisplay.innerText = `${state.t2.toFixed(2)} ms`;
+            elements.t2ClocksDisplay.innerText = `${state.digital} クロック`;
+
+            elements.vmaxDisplay.innerText = `${state.vmax.toFixed(2)} V`;
+            elements.graphMaxCount.innerText = state.maxCount;
+
+            // KaTeX Formula re-render
+            if (window.renderMathInElement) {
+                renderMathInElement(document.body, {
+                    delimiters: [
+                        {left: '$$', right: '$$', display: true},
+                        {left: '$', right: '$', display: false}
+                    ]
+                });
+            }
+
+            drawCircuit();
+            drawGraph();
+        }
+
+        function setPreset(vin, vref, bits, fclk, c) {
+            elements.vref.value = vref;
+            elements.vin.value = vin;
+            elements.resolution.value = bits;
+            elements.fclk.value = fclk;
+            elements.capacitor.value = c;
+            resetSim();
+            updateCalculations();
+        }
+
+        function jumpToPhase(p) {
+            state.phase = p;
+            if (p === 0) state.simTime = 0;
+            else if (p === 1) state.simTime = state.t1 * 0.5;
+            else if (p === 2) state.simTime = state.t1 + state.t2 * 0.5;
+            else if (p === 3) state.simTime = state.t1 + state.t2 + 0.2;
+
+            updatePhaseUI();
+            drawCircuit();
+            drawGraph();
+        }
+
+        function togglePlay() {
+            state.isPlaying = !state.isPlaying;
+            if (state.isPlaying) {
+                elements.playIcon.className = "fa-solid fa-pause";
+                elements.playText.innerText = "一時停止";
+                state.lastTimestamp = performance.now();
+                requestAnimationFrame(simLoop);
+            } else {
+                elements.playIcon.className = "fa-solid fa-play";
+                elements.playText.innerText = "シミュレーション再生";
+                if (state.animFrameId) cancelAnimationFrame(state.animFrameId);
+            }
+        }
+
+        function resetSim() {
+            state.simTime = 0;
+            state.phase = 0;
+            if (state.isPlaying) togglePlay();
+            updatePhaseUI();
+            drawCircuit();
+            drawGraph();
+        }
+
+        function determinePhaseFromTime() {
+            if (state.simTime <= 0.001) {
+                state.phase = 0;
+            } else if (state.simTime <= state.t1) {
+                state.phase = 1;
+            } else if (state.simTime <= state.t1 + state.t2) {
+                state.phase = 2;
+            } else {
+                state.phase = 3;
+            }
+        }
+
+        function simLoop(timestamp) {
+            if (!state.isPlaying) return;
+
+            const deltaSec = (timestamp - state.lastTimestamp) / 1000;
+            state.lastTimestamp = timestamp;
+
+            state.speed = parseFloat(elements.simSpeed.value);
+            const cycleDurationSec = 5.0 / state.speed;
+            const simTotalTime = state.t1 + state.t2 + 0.5; // in ms
+
+            state.simTime += (simTotalTime / cycleDurationSec) * deltaSec;
+
+            if (state.simTime >= simTotalTime) {
+                state.simTime = simTotalTime;
+                state.isPlaying = false;
+                elements.playIcon.className = "fa-solid fa-play";
+                elements.playText.innerText = "再開";
+            }
+
+            determinePhaseFromTime();
+            updatePhaseUI();
+            drawCircuit();
+            drawGraph();
+
+            if (state.isPlaying) {
+                state.animFrameId = requestAnimationFrame(simLoop);
+            }
+        }
+
+        function updatePhaseUI() {
+            const banner = document.getElementById('result-voltage-banner');
+
+            for (let i = 0; i <= 3; i++) {
+                const pill = document.getElementById(`pill-${i}`);
+                if (i === state.phase) {
+                    pill.className = "step-pill px-3 py-1 text-xs rounded-lg border font-semibold transition bg-cyan-600 text-white border-cyan-400 shadow-md";
+                } else {
+                    pill.className = "step-pill px-3 py-1 text-xs rounded-lg border font-normal transition bg-slate-800 text-slate-400 border-slate-700 hover:text-slate-200";
+                }
+            }
+
+            let html = "";
+            if (state.phase === 0) {
+                elements.swStateBadge.innerText = "SW1: GND | SW2: ON (放電)";
+                elements.swStateBadge.className = "text-xs px-2.5 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700 font-mono";
+                elements.completionStatusBadge.innerText = "(Stage 0: 待機中)";
+                elements.completionStatusBadge.className = "text-xs text-slate-400";
+                banner.className = "bg-slate-900/95 border border-slate-800 rounded-2xl p-5 shadow-xl transition-all duration-300";
+
+                html = `
+                    <div class="flex items-start space-x-3">
+                        <div class="p-2 bg-slate-800 text-slate-300 rounded-lg text-lg"><i class="fa-solid fa-power-off"></i></div>
+                        <div>
+                            <h4 class="text-sm font-bold text-slate-200">Stage 0: 待機・リセット (Reset Phase)</h4>
+                            <p class="text-xs text-slate-300 mt-1 leading-relaxed">
+                                リセットスイッチ SW2 が閉じて <span class="kw-integrator"><i class="fa-solid fa-wave-square"></i> 積分器</span> のコンデンサ $C$ を放電させ、$V_{out} = 0.00\text{V}$ に初期化します。
+                            </p>
+                        </div>
+                    </div>
+                `;
+            } else if (state.phase === 1) {
+                elements.swStateBadge.innerText = `SW1: Vin (${state.vin.toFixed(2)}V) 接続中`;
+                elements.swStateBadge.className = "text-xs px-2.5 py-0.5 rounded bg-sky-950 text-sky-300 border border-sky-700 font-mono";
+                elements.completionStatusBadge.innerText = "(Stage 1: 未知電圧のアップ積分中)";
+                elements.completionStatusBadge.className = "text-xs text-sky-400 font-semibold";
+                banner.className = "bg-slate-900/95 border border-sky-800/80 rounded-2xl p-5 shadow-xl transition-all duration-300";
+
+                html = `
+                    <div class="flex items-start space-x-3">
+                        <div class="p-2 bg-sky-900/50 text-sky-400 rounded-lg text-lg"><i class="fa-solid fa-arrow-trend-down"></i></div>
+                        <div>
+                            <h4 class="text-sm font-bold text-sky-300">Stage 1: 未知電圧 $V_{in}$ の充電積分 (固定時間 $T_1$)</h4>
+                            <p class="text-xs text-slate-300 mt-1 leading-relaxed">
+                                スイッチSW1が入力電圧 $V_{in}$ に接続。固定された <span class="kw-time"><i class="fa-regular fa-clock"></i> 時間 $T_1$</span> ($2^N = ${state.maxCount}$ クロック) の間、<span class="kw-integrator"><i class="fa-solid fa-wave-square"></i> 積分器</span> が充電を行います。
+                                傾き $-\frac{V_{in}}{RC}$ で出力 $V_{out}$ が直線的に降下します。
+                            </p>
+                        </div>
+                    </div>
+                `;
+            } else if (state.phase === 2) {
+                elements.swStateBadge.innerText = `SW1: -Vref (-${state.vref.toFixed(2)}V) 切替済`;
+                elements.swStateBadge.className = "text-xs px-2.5 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-700 font-mono";
+                elements.completionStatusBadge.innerText = "(Stage 2: 基準電圧でのダウン積分中)";
+                elements.completionStatusBadge.className = "text-xs text-emerald-400 font-semibold";
+                banner.className = "bg-slate-900/95 border border-emerald-800/80 rounded-2xl p-5 shadow-xl transition-all duration-300";
+
+                html = `
+                    <div class="flex items-start space-x-3">
+                        <div class="p-2 bg-emerald-900/50 text-emerald-400 rounded-lg text-lg"><i class="fa-solid fa-arrow-trend-up"></i></div>
+                        <div>
+                            <h4 class="text-sm font-bold text-emerald-300">Stage 2: 基準電圧 $-V_{ref}$ での放電積分 (計測時間 $T_2$)</h4>
+                            <p class="text-xs text-slate-300 mt-1 leading-relaxed">
+                                SW1が <span class="kw-ref"><i class="fa-solid fa-bolt"></i> 基準電圧 $-V_{ref}$</span> に切替。
+                                <span class="kw-integrator"><i class="fa-solid fa-wave-square"></i> 積分器</span> は正の傾き $+\frac{V_{ref}}{RC}$ で逆積分を行い、出力が $0\text{V}$ に戻るまでの放電 <span class="kw-time"><i class="fa-regular fa-clock"></i> 時間 $T_2$</span> をカウント計測します。
+                            </p>
+                        </div>
+                    </div>
+                `;
+            } else {
+                elements.swStateBadge.innerText = "SW1: 切断 | 測定完了";
+                elements.swStateBadge.className = "text-xs px-2.5 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-600 font-mono";
+                elements.completionStatusBadge.innerText = "🎉 (Stage 3: 変換・復元完了！)";
+                elements.completionStatusBadge.className = "text-xs text-emerald-300 font-bold animate-pulse";
+                banner.className = "bg-slate-900/95 border rounded-2xl p-5 shadow-2xl transition-all duration-300 glow-card glow-card-active";
+
+                html = `
+                    <div class="flex items-start space-x-3">
+                        <div class="p-2 bg-emerald-900 text-emerald-300 rounded-lg text-lg"><i class="fa-solid fa-circle-check"></i></div>
+                        <div>
+                            <h4 class="text-sm font-bold text-emerald-300">Stage 3: 変換完了・測定復元電圧 [V] の確定</h4>
+                            <p class="text-xs text-slate-300 mt-1 leading-relaxed">
+                                コンパレータが $0\text{V}$ を検知してカウントが停止。計測された放電 <span class="kw-time"><i class="fa-regular fa-clock"></i> 時間 $T_2$</span> から、最終的な復元電圧 
+                                <strong class="text-emerald-300 text-sm font-mono">${state.vMeasured.toFixed(3)} V</strong> が得られました！
+                                抵抗 $R$ や容量 $C$ の誤差は原理的に完全にキャンセルされています。
+                            </p>
+                        </div>
+                    </div>
+                `;
+            }
+
+            elements.stepDescBox.innerHTML = html;
+        }
+
+        function drawCircuit() {
+            const cvs = elements.circuitCanvas;
+            const rect = cvs.getBoundingClientRect();
+            cvs.width = rect.width * window.devicePixelRatio || 600;
+            cvs.height = rect.height * window.devicePixelRatio || 375;
+            const ctx = cvs.getContext('2d');
+            
+            const w = cvs.width;
+            const h = cvs.height;
+            ctx.clearRect(0, 0, w, h);
+
+            ctx.lineWidth = 2 * (w / 600);
+            ctx.font = `${11 * (w / 600)}px 'JetBrains Mono', monospace`;
+
+            const swX = w * 0.18;
+            const opX = w * 0.50;
+            const opY = h * 0.45;
+            const compX = w * 0.78;
+            const compY = h * 0.45;
+
+            // Terminal dots
+            ctx.strokeStyle = '#475569';
+            ctx.fillStyle = '#94a3b8';
+
+            // Vin Terminal
+            ctx.beginPath(); ctx.arc(swX - 40, opY - 50, 4, 0, Math.PI * 2); ctx.fill();
+            ctx.fillText(`Vin (${state.vin.toFixed(2)}V)`, swX - 95, opY - 45);
+
+            // -Vref Terminal
+            ctx.beginPath(); ctx.arc(swX - 40, opY + 50, 4, 0, Math.PI * 2); ctx.fill();
+            ctx.fillText(`-Vref (-${state.vref.toFixed(2)}V)`, swX - 110, opY + 55);
+
+            // GND
+            ctx.beginPath(); ctx.arc(swX - 40, opY, 4, 0, Math.PI * 2); ctx.fill();
+            ctx.fillText("GND", swX - 70, opY + 4);
+
+            // Switch Arm
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.moveTo(swX, opY);
+            if (state.phase === 1) {
+                ctx.strokeStyle = '#38bdf8';
+                ctx.lineTo(swX - 38, opY - 48);
+            } else if (state.phase === 2) {
+                ctx.strokeStyle = '#34d399';
+                ctx.lineTo(swX - 38, opY + 48);
+            } else {
+                ctx.strokeStyle = '#64748b';
+                ctx.lineTo(swX - 38, opY);
+            }
+            ctx.stroke();
+
+            // Resistor R
+            ctx.lineWidth = 2;
+            ctx.strokeStyle = (state.phase === 1 || state.phase === 2) ? '#38bdf8' : '#475569';
+            ctx.beginPath();
+            ctx.moveTo(swX, opY);
+            ctx.lineTo(swX + 35, opY);
+            ctx.stroke();
+
+            const rX = swX + 35;
+            ctx.fillStyle = '#0f172a';
+            ctx.strokeStyle = '#38bdf8';
+            ctx.fillRect(rX, opY - 12, 40, 24);
+            ctx.strokeRect(rX, opY - 12, 40, 24);
+            ctx.fillStyle = '#f8fafc';
+            ctx.fillText(`R`, rX + 14, opY + 4);
+
+            ctx.beginPath();
+            ctx.moveTo(rX + 40, opY);
+            ctx.lineTo(opX - 40, opY - 20);
+            ctx.stroke();
+
+            // OpAmp Integrator
+            ctx.fillStyle = '#0b1329';
+            ctx.strokeStyle = '#3b82f6';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.moveTo(opX - 40, opY - 40);
+            ctx.lineTo(opX - 40, opY + 40);
+            ctx.lineTo(opX + 30, opY);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.fillStyle = '#93c5fd';
+            ctx.fillText("-", opX - 34, opY - 16);
+            ctx.fillText("+", opX - 34, opY + 24);
+            ctx.fillStyle = '#60a5fa';
+            ctx.fillText("積分器", opX - 25, opY + 4);
+
+            // OpAmp Non-inverting to GND
+            ctx.strokeStyle = '#475569';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(opX - 40, opY + 20); ctx.lineTo(opX - 60, opY + 20); ctx.lineTo(opX - 60, opY + 50);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(opX - 70, opY + 50); ctx.lineTo(opX - 50, opY + 50);
+            ctx.moveTo(opX - 65, opY + 54); ctx.lineTo(opX - 55, opY + 54);
+            ctx.stroke();
+
+            // Feedback Capacitor C
+            const nodeIn = opX - 50;
+            const nodeOut = opX + 45;
+            ctx.strokeStyle = '#38bdf8';
+            ctx.beginPath();
+            ctx.moveTo(nodeIn, opY - 20); ctx.lineTo(nodeIn, opY - 70); ctx.lineTo(nodeOut, opY - 70); ctx.lineTo(nodeOut, opY);
+            ctx.stroke();
+
+            // Capacitor Plates
+            const capX = opX - 5;
+            ctx.fillStyle = '#0f172a';
+            ctx.fillRect(capX - 12, opY - 80, 24, 20);
+            ctx.strokeStyle = '#38bdf8';
+            ctx.beginPath();
+            ctx.moveTo(capX - 6, opY - 80); ctx.lineTo(capX - 6, opY - 60);
+            ctx.moveTo(capX + 6, opY - 80); ctx.lineTo(capX + 6, opY - 60);
+            ctx.stroke();
+            ctx.fillStyle = '#e0f2fe';
+            ctx.fillText(`C (${state.c}μF)`, capX - 20, opY - 86);
+
+            // SW2 Parallel Reset Switch
+            ctx.strokeStyle = state.phase === 0 ? '#ef4444' : '#64748b';
+            ctx.beginPath();
+            ctx.moveTo(nodeIn + 15, opY - 70); ctx.lineTo(nodeIn + 15, opY - 100);
+            ctx.lineTo(nodeOut - 15, opY - 100); ctx.lineTo(nodeOut - 15, opY - 70);
+            ctx.stroke();
+            ctx.fillStyle = state.phase === 0 ? '#fca5a5' : '#94a3b8';
+            ctx.fillText(state.phase === 0 ? "SW2: [閉 (放電)]" : "SW2: [開]", capX - 30, opY - 105);
+
+            // Vout Node display
+            let currentVout = 0;
+            if (state.phase === 1) {
+                currentVout = - (state.vin * state.simTime) / (state.r * state.c);
+            } else if (state.phase === 2) {
+                const t2_cur = state.simTime - state.t1;
+                currentVout = state.vmax + (state.vref * t2_cur) / (state.r * state.c);
+            } else if (state.phase === 3) {
+                currentVout = 0;
+            }
+
+            ctx.fillStyle = '#0284c7';
+            ctx.fillRect(opX + 50, opY - 14, 80, 28);
+            ctx.fillStyle = '#ffffff';
+            ctx.fillText(`Vout: ${currentVout.toFixed(2)}V`, opX + 54, opY + 4);
+
+            // Comparator
+            ctx.strokeStyle = '#38bdf8';
+            ctx.beginPath();
+            ctx.moveTo(opX + 30, opY); ctx.lineTo(compX - 30, compY - 15);
+            ctx.stroke();
+
+            ctx.fillStyle = '#0b1329';
+            ctx.strokeStyle = '#10b981';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(compX - 30, compY - 35);
+            ctx.lineTo(compX - 30, compY + 35);
+            ctx.lineTo(compX + 25, compY);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.fillStyle = '#a7f3d0';
+            ctx.fillText("+", compX - 25, compY - 12);
+            ctx.fillText("-", compX - 25, compY + 18);
+            ctx.fillText("コンパレータ", compX - 26, compY + 3);
+
+            // Current Animation Particles
+            if ((state.phase === 1 || state.phase === 2) && state.isPlaying) {
+                const timeFactor = (Date.now() / 25) % 20;
+                ctx.fillStyle = state.phase === 1 ? '#38bdf8' : '#34d399';
+                for (let i = 0; i < 4; i++) {
+                    const dotPos = (timeFactor + i * 15) % 50;
+                    ctx.beginPath();
+                    ctx.arc(swX + dotPos, opY, 3, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            }
+        }
+
+        function drawGraph() {
+            const cvs = elements.graphCanvas;
+            const rect = cvs.getBoundingClientRect();
+            cvs.width = rect.width * window.devicePixelRatio || 600;
+            cvs.height = rect.height * window.devicePixelRatio || 375;
+            const ctx = cvs.getContext('2d');
+            
+            const w = cvs.width;
+            const h = cvs.height;
+            ctx.clearRect(0, 0, w, h);
+
+            const padL = 55 * (w / 600);
+            const padR = 25 * (w / 600);
+            const padT = 30 * (h / 375);
+            const padB = 45 * (h / 375);
+
+            const plotW = w - padL - padR;
+            const plotH = h - padT - padB;
+
+            const totalMaxTime = state.t1 * 2.2;
+            const zeroY = padT + plotH * 0.25;
+            const minY = - Math.abs(state.vmax) * 1.25;
+
+            function getX(t) { return padL + (t / totalMaxTime) * plotW; }
+            function getY(v) { return zeroY + (v / minY) * (plotH * 0.65); }
+
+            const x0 = getX(0);
+            const xT1 = getX(state.t1);
+            const xT2 = getX(state.t1 + state.t2);
+
+            // Background Regions
+            ctx.fillStyle = 'rgba(14, 165, 233, 0.12)';
+            ctx.fillRect(x0, padT, xT1 - x0, plotH);
+
+            ctx.fillStyle = 'rgba(16, 185, 129, 0.12)';
+            ctx.fillRect(xT1, padT, xT2 - xT1, plotH);
+
+            // Horizontal Line 0V
+            ctx.strokeStyle = '#334155';
+            ctx.lineWidth = 1;
+            ctx.beginPath(); ctx.moveTo(padL, zeroY); ctx.lineTo(w - padR, zeroY); ctx.stroke();
+            ctx.font = `${10 * (w / 600)}px 'JetBrains Mono', monospace`;
+            ctx.fillStyle = '#64748b';
+            ctx.fillText("0.0V", 10, zeroY + 4);
+
+            // Vmax line
+            const yVmax = getY(state.vmax);
+            ctx.strokeStyle = '#1e293b';
+            ctx.beginPath(); ctx.moveTo(padL, yVmax); ctx.lineTo(w - padR, yVmax); ctx.stroke();
+            ctx.fillText(`${state.vmax.toFixed(2)}V`, 5, yVmax + 4);
+
+            // Labels
+            ctx.fillStyle = '#38bdf8';
+            ctx.fillText("T₁ (充電時間)", x0 + 10, padT + 15);
+            ctx.fillStyle = '#34d399';
+            ctx.fillText("T₂ (放電時間)", xT1 + 10, padT + 15);
+
+            // Main Waveform
+            ctx.lineWidth = 3 * (w / 600);
+            ctx.beginPath();
+            ctx.moveTo(x0, zeroY);
+            ctx.lineTo(xT1, yVmax);
+            ctx.lineTo(xT2, zeroY);
+            ctx.lineTo(getX(totalMaxTime), zeroY);
+
+            const grad = ctx.createLinearGradient(x0, zeroY, xT2, zeroY);
+            grad.addColorStop(0, '#38bdf8');
+            grad.addColorStop(state.t1 / (state.t1 + state.t2), '#38bdf8');
+            grad.addColorStop(1, '#34d399');
+            ctx.strokeStyle = grad;
+            ctx.stroke();
+
+            // Guide lines
+            ctx.strokeStyle = '#0284c7';
+            ctx.setLineDash([4, 4]);
+            ctx.beginPath(); ctx.moveTo(xT1, zeroY); ctx.lineTo(xT1, padT + plotH); ctx.stroke();
+            ctx.fillText(`T₁=${state.t1.toFixed(2)}ms`, xT1 - 25, padT + plotH + 15);
+
+            ctx.strokeStyle = '#10b981';
+            ctx.beginPath(); ctx.moveTo(xT2, zeroY); ctx.lineTo(xT2, padT + plotH); ctx.stroke();
+            ctx.fillText(`T₁+T₂=${(state.t1 + state.t2).toFixed(2)}ms`, xT2 - 35, padT + plotH + 15);
+            ctx.setLineDash([]);
+
+            // Scan Marker
+            const curX = getX(state.simTime);
+            let curVout = 0;
+            let curCount = 0;
+
+            if (state.simTime <= state.t1) {
+                curVout = - (state.vin * state.simTime) / (state.r * state.c);
+                curCount = Math.floor((state.simTime / state.t1) * state.maxCount);
+            } else if (state.simTime <= state.t1 + state.t2) {
+                const t2_cur = state.simTime - state.t1;
+                curVout = state.vmax + (state.vref * t2_cur) / (state.r * state.c);
+                curCount = Math.floor((t2_cur / state.t1) * state.maxCount);
+            } else {
+                curVout = 0;
+                curCount = state.digital;
+            }
+
+            const curY = getY(curVout);
+
+            ctx.strokeStyle = '#ef4444';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath(); ctx.moveTo(curX, padT); ctx.lineTo(curX, padT + plotH); ctx.stroke();
+
+            ctx.fillStyle = '#f43f5e';
+            ctx.beginPath(); ctx.arc(curX, curY, 6, 0, Math.PI * 2); ctx.fill();
+            ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2; ctx.stroke();
+
+            elements.graphCountDisplay.innerText = curCount;
+            elements.graphVoutDisplay.innerText = `${curVout.toFixed(2)} V`;
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            elements.vin.addEventListener('input', updateCalculations);
+            elements.vref.addEventListener('input', updateCalculations);
+            elements.resolution.addEventListener('change', updateCalculations);
+            elements.fclk.addEventListener('change', updateCalculations);
+            elements.resistor.addEventListener('input', updateCalculations);
+            elements.capacitor.addEventListener('input', updateCalculations);
+
+            window.addEventListener('resize', () => {
+                drawCircuit();
+                drawGraph();
+            });
+
+            updateCalculations();
+            updatePhaseUI();
+        });
+    </script>
+</body>
+</html>
